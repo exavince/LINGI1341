@@ -1,9 +1,12 @@
 #include "packet_interface.h"
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 
 struct __attribute__((__packed__)) pkt {
-	uint8_t type : 3,
-					window : 5;
+	ptypes_t type;
+	uint8_t window : 5;
 	uint8_t seqnum;
 	uint16_t length;
 	uint32_t timestamp;
@@ -12,7 +15,10 @@ struct __attribute__((__packed__)) pkt {
 };
 
 pkt_t* pkt_new() {
-	struct pkt *new = calloc(1, sizeof(pkt_t));
+	struct pkt *new = malloc(sizeof(pkt_t));
+	if(pkt == NULL) {
+		return NULL;
+	}
 	new->payload = NULL;
 
 	return new;
@@ -20,7 +26,7 @@ pkt_t* pkt_new() {
 
 void pkt_del (pkt_t *pkt) {
 	if(pkt == NULL) {
-		break;
+		return;
 	}
 	else {
 		if(pkt->payload != NULL) {
@@ -36,26 +42,34 @@ pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
 
 pkt_status_code pkt_encode (const pkt_t* pkt, char *buf, size_t *len)
 {
-	/* Your code will be inserted here */
+	int i;
+	char *ptr = (char *) pkt;
+	buf[0] = (pkt->type << 5) | (pkt->window);
+	buf[1] = pkt->seqnum;
+	buf[2] = pkt->length >> 8;
+	buf[3] = pkt->length;
+
+	memcpy((void *) buf[4], pkt->payload, pkt->length);
+
 }
 
-ptypes_t pkt_get_type (const pkt_t *pkt) {
+ptypes_t pkt_get_type (const pkt_t*) {
 	return pkt->type;
 }
 
-uint8_t pkt_get_window (const pkt_t *pkt) {
+uint8_t pkt_get_window (const pkt_t*) {
 	return pkt->window;
 }
 
-uint8_t pkt_get_seqnum (const pkt_t *pkt) {
+uint8_t pkt_get_seqnum (const pkt_t*) {
 	return pkt->seqnum;
 }
 
-uint16_t pkt_get_length (const pkt_t *pkt) {
+uint16_t pkt_get_length (const pkt_t*) {
 	return pkt->length;
 }
 
-uint32_t pkt_get_timestamp (const pkt_t *pkt) {
+uint32_t pkt_get_timestamp (const pkt_t*) {
 	return pkt->timestamp;
 }
 
@@ -117,7 +131,7 @@ pkt_status_code pkt_set_crc(pkt_t *pkt, const uint32_t crc) {
 }
 
 pkt_status_code pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t length) {
-	pkt->payload = (char *) malloc(sizeof(char)*length);
+	pkt->payload = (char *) malloc(sizeof(char)*length); //Attention +1
 	if (pkt->payload == NULL) {
 		return E_NOMEM;
 	}
