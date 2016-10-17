@@ -2,6 +2,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <zlib.h>
+#include <netinet/in.h>
+#include <time.h>
 
 
 struct __attribute__((__packed__)) pkt {
@@ -15,8 +18,8 @@ struct __attribute__((__packed__)) pkt {
 };
 
 pkt_t* pkt_new() {
-	struct pkt *new = malloc(sizeof(pkt_t));
-	if(pkt == NULL) {
+	pkt_t *new = malloc(sizeof(pkt_t));
+	if(new == NULL) {
 		return NULL;
 	}
 	new->payload = NULL;
@@ -37,47 +40,91 @@ void pkt_del (pkt_t *pkt) {
 }
 
 pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
-	/* Your code will be inserted here */
+	if(len < 8) {
+		return E_NOHEADER;
+	}
+	if(data == NULL) {
+		return E_UNCONSISTENT;
+	}
+
+	ptypes_t type = (ptypes_t) data[0] >> 5;
+	if(type != PTYPE_DATA && type!= PTYPE_ACK){
+		return E_TYPE;
+	}
+	pkt->type = type;
+
+	uint8_t window = (uint8_t) (data[0] << 5);
+	pkt->window = window;
+	uint8_t seqnum =(uint8_t) data[1];
+	pkt->seqnum = seqnum;
+	uint16_t length = (uint16_t) (data[2]<<8 | data[3]);
+	length = ntohs(length);
+	pkt->length = length;
+	uint32_t timestamp;
+	memcpy(&timestamp, (void *) &data[4], 4);
+	pkt->timestamp = timestamp;
+
+	char buffer[length];
+	memcpy((void *) &buffer[0], (void *) &data[8], length);
+	pkt->payload = (char *) &buffer;
+
+	uint32_t crc;
+	memcpy((void *) &crc, (void *) &data[7+length], 4);
+	crc = ntohl(crc);
+	pkt->crc = crc;
+
+	return 0;
 }
 
 pkt_status_code pkt_encode (const pkt_t* pkt, char *buf, size_t *len)
 {
-	int i;
-	char *ptr = (char *) pkt;
+	int length = htons(pkt->length);
+	uint32_t timestamp = (uint32_t) time(NULL);
 	buf[0] = (pkt->type << 5) | (pkt->window);
 	buf[1] = pkt->seqnum;
-	buf[2] = pkt->length >> 8;
-	buf[3] = pkt->length;
+	buf[2] = length >> 8;
+	buf[3] = length;
+	buf[4] = timestamp >> 24;
+	buf[5] = timestamp >> 16;
+	buf[6] = timestamp >> 8;
+	buf[7] = timestamp;
 
-	memcpy((void *) buf[4], pkt->payload, pkt->length);
+	memcpy((void *) &buf[8], (void *) pkt->payload, pkt->length);
 
+	uint32_t crc = crc32(0L, Z_NULL, 0);
+	crc = htonl(crc32(0, (void*) buf, 8+(pkt->length)));
+	memcpy((void *) &buf[8+pkt->length], (void *) &crc, 4);
+
+ 	*len = 8+pkt->length+4;
+
+	return PKT_OK;
 }
 
-ptypes_t pkt_get_type (const pkt_t*) {
+ptypes_t pkt_get_type (const pkt_t *pkt) {
 	return pkt->type;
 }
 
-uint8_t pkt_get_window (const pkt_t*) {
+uint8_t pkt_get_window (const pkt_t *pkt) {
 	return pkt->window;
 }
 
-uint8_t pkt_get_seqnum (const pkt_t*) {
+uint8_t pkt_get_seqnum (const pkt_t *pkt) {
 	return pkt->seqnum;
 }
 
-uint16_t pkt_get_length (const pkt_t*) {
+uint16_t pkt_get_length (const pkt_t *pkt) {
 	return pkt->length;
 }
 
-uint32_t pkt_get_timestamp (const pkt_t*) {
+uint32_t pkt_get_timestamp (const pkt_t *pkt) {
 	return pkt->timestamp;
 }
 
-uint32_t pkt_get_crc (const pkt_t*) {
+uint32_t pkt_get_crc (const pkt_t *pkt) {
 	return pkt->crc;
 }
 
-const char* pkt_get_payload(const pkt_t*) {
+const char* pkt_get_payload(const pkt_t *pkt) {
 	return pkt->payload;
 }
 
