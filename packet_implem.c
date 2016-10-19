@@ -6,7 +6,7 @@
 #include <netinet/in.h>
 #include <time.h>
 
-//Structure du packet
+
 struct __attribute__((__packed__)) pkt {
     uint8_t window : 5, type : 3;
     uint8_t seqnum;
@@ -16,30 +16,28 @@ struct __attribute__((__packed__)) pkt {
     uint32_t crc;
 };
 
-//Création d'un nouveau packet
 pkt_t* pkt_new() {
     pkt_t *new = malloc(sizeof(pkt_t));
     if(new == NULL) {
         return NULL;
     }
     new->payload = NULL;
-
+    
     return new;
 }
 
-//Suppression d'un packet
 void pkt_del (pkt_t *pkt) {
     if(pkt == NULL) {
         return;
     }
     else {
         if(pkt->payload != NULL) {
-
+            
         }
+   
     }
 }
 
-//Decodage d'un packet
 pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
     if(len < 8) {
         return E_NOHEADER;
@@ -51,18 +49,18 @@ pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
 	uint16_t length = ntohs(pkt->length);
     pkt->length = length;
     uint32_t timestamp;
-    memcpy((void *) &timestamp, (void *) &data[4], 4);
+    memcpy((void *) &timestamp, (void *) data+4, 4);
     pkt->timestamp = timestamp;
-
-    char buffer[length];
-    memcpy(&buffer[0], &data[8], length-);
-    pkt->payload = (char *) &buffer;
-
+    
+    char *buffer = (char *) malloc(sizeof(char)*length);
+    memcpy(buffer, data+8, length);
+    pkt->payload = buffer;
+    
     uint32_t crc;
-    memcpy(&crc, &data[8+length], 4);
+    memcpy(&crc, data+7+length, 4);
     crc = ntohl(crc);
     pkt->crc = crc;
-
+    
     return 0;
 }
 
@@ -74,16 +72,15 @@ pkt_status_code pkt_encode (const pkt_t* pkt, char *buf, size_t *len)
     buf[2] = length;
     buf[3] = length >> 8;
     memcpy(&buf[4], &(pkt->timestamp), 4);
-
+    
     memcpy((void *) &buf[8], (void *) pkt->payload, pkt->length);
-
+    
     uint32_t crc = crc32(0L, Z_NULL, 0);
     crc = htonl(crc32(0, (void*) buf, 8+(pkt->length)));
     memcpy((void *) &buf[8+pkt->length], (void *) &crc, 4);
-    printf("CRC : %d\n", ntohl(crc));
-
+    
     *len = 8+(pkt->length)+4;
-
+    
     return PKT_OK;
 }
 
@@ -167,10 +164,10 @@ pkt_status_code pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t len
         return E_NOMEM;
     }
     memcpy(pkt->payload, data, length);
-    pkt->payload[length-1] = '\0';
     pkt->length = length;
     return 0;
 }
+
 
 
 int main(int argc, char *argv[]) {
@@ -195,8 +192,7 @@ int main(int argc, char *argv[]) {
   pkt_encode(pkt, (char *) &buffer, &taille);
   pkt_t *pkt2 = pkt_new();
   pkt_decode((char *) &buffer, taille, pkt2);
-  char *string2 = pkt2->payload;
-  printf("%s\n", string2);
+  printf("Payload : %s\n", pkt2->payload);
   printf("%d\n", pkt2->type);
   printf("%d\n", pkt2->window);
   printf("%d\n", pkt2->seqnum);
