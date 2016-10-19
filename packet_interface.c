@@ -22,7 +22,7 @@ pkt_t* pkt_new() {
         return NULL;
     }
     new->payload = NULL;
-    
+
     return new;
 }
 
@@ -32,9 +32,9 @@ void pkt_del (pkt_t *pkt) {
     }
     else {
         if(pkt->payload != NULL) {
-            
+
         }
-   
+
     }
 }
 
@@ -51,16 +51,16 @@ pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
     uint32_t timestamp;
     memcpy((void *) &timestamp, (void *) data+4, 4);
     pkt->timestamp = timestamp;
-    
+
     char *buffer = (char *) malloc(sizeof(char)*length);
     memcpy(buffer, data+8, length);
     pkt->payload = buffer;
-    
+
     uint32_t crc;
     memcpy(&crc, data+7+length, 4);
     crc = ntohl(crc);
     pkt->crc = crc;
-    
+
     return 0;
 }
 
@@ -72,15 +72,15 @@ pkt_status_code pkt_encode (const pkt_t* pkt, char *buf, size_t *len)
     buf[2] = length;
     buf[3] = length >> 8;
     memcpy(&buf[4], &(pkt->timestamp), 4);
-    
+
     memcpy((void *) &buf[8], (void *) pkt->payload, pkt->length);
-    
+
     uint32_t crc = crc32(0L, Z_NULL, 0);
     crc = htonl(crc32(0, (void*) buf, 8+(pkt->length)));
     memcpy((void *) &buf[8+pkt->length], (void *) &crc, 4);
-    
+
     *len = 8+(pkt->length)+4;
-    
+
     return PKT_OK;
 }
 
@@ -169,7 +169,7 @@ pkt_status_code pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t len
 }
 
 
-
+/*
 int main(int argc, char *argv[]) {
 	pkt_t *pkt = pkt_new();
 	char *string = "Salut les gars";
@@ -200,3 +200,4 @@ int main(int argc, char *argv[]) {
   printf("%d\n", pkt2->timestamp);
   printf("%d\n", pkt2->crc);
 }
+*/

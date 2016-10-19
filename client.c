@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "packet_interface.c"
 
 #define SERVER "::1"
 #define BUFLEN 512  //Max length of buffer
@@ -40,21 +41,32 @@ int main(void) {
       exit(0);
     }
 
-    char *buffer = malloc(sizeof(char)*256);
+    char *retour = malloc(sizeof(char)*256);
     while(1) {
-        printf("Enter message : ");
-        bzero(buffer,256);
-        fgets(buffer,255,stdin);
-        erreur = write(sockfd,buffer,strlen(buffer));
+        pkt_t *pkt = pkt_new();
+      	char *string = "Salut les gars";
+      	pkt_set_type(pkt, PTYPE_DATA);
+      	pkt_set_window(pkt, 1);
+      	pkt_set_length(pkt ,15);
+      	pkt_set_seqnum(pkt, 123);
+      	pkt_set_payload(pkt, string, 15);
+        uint32_t timestamp = time(NULL);
+        pkt_set_timestamp(pkt, timestamp);
+        char *buffer = malloc(sizeof(char)*(8+(pkt_get_length(pkt))+4));
+        size_t taille = 27;
+        pkt_encode(pkt, (char *) buffer, &taille);
+
+
+        printf("Enter message : \n");
+        erreur = write(sockfd,buffer, 27);
         if (erreur < 0) {
           error("ERROR writing to socket");
         }
 
-        bzero(buffer,256);
-        if (recvfrom(sockfd, buffer, BUFLEN, 0, (struct sockaddr *) &address, &address_length) == -1) {
+        if (recvfrom(sockfd, retour, BUFLEN, 0, (struct sockaddr *) &address, &address_length) == -1) {
             error("recvfrom()");
         }
-        puts(buffer);
+        puts(retour);
     }
 
     close(sockfd);
