@@ -27,15 +27,7 @@ pkt_t* pkt_new() {
 }
 
 void pkt_del (pkt_t *pkt) {
-    if(pkt == NULL) {
-        return;
-    }
-    else {
-        if(pkt->payload != NULL) {
-
-        }
-
-    }
+  free(pkt);
 }
 
 pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
@@ -67,8 +59,7 @@ pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
 pkt_status_code pkt_encode (const pkt_t* pkt, char *buf, size_t *len)
 {
     uint16_t length = htons(pkt->length);
-    buf[0] = (pkt->type << 5) | (pkt->window);
-    buf[1] = pkt->seqnum;
+    memcpy(buf, pkt, 2);
     buf[2] = length;
     buf[3] = length >> 8;
     memcpy(&buf[4], &(pkt->timestamp), 4);
@@ -138,8 +129,11 @@ pkt_status_code pkt_set_seqnum(pkt_t *pkt, const uint8_t seqnum) {
 }
 
 pkt_status_code pkt_set_length(pkt_t *pkt, const uint16_t length) {
-    pkt->length = length;
-    return 0;
+  if (pkt != NULL) {
+      pkt->length = length;
+      return 0;
+  }
+  return E_LENGTH;
 }
 
 pkt_status_code pkt_set_timestamp(pkt_t *pkt, const uint32_t timestamp) {
@@ -163,9 +157,14 @@ pkt_status_code pkt_set_payload(pkt_t *pkt, const char *data, const uint16_t len
     if (pkt->payload == NULL) {
         return E_NOMEM;
     }
-    memcpy(pkt->payload, data, length);
-    pkt->length = length;
-    return 0;
+    if (data == NULL) {
+      pkt->payload = NULL;
+    }
+    else {
+      memcpy(pkt->payload, data, length);
+      pkt->length = length;
+      return 0;
+    }
 }
 
 
