@@ -16,9 +16,9 @@
 /**************************************
 *           variables globales        *
 **************************************/
-int sockfd, client_length, erreur;
-struct sockaddr_in6 add_host, add_client;
-int host_length = sizeof(add_client);
+int sockfd, client_length, erreur;  //Gestion  des sockets + erreur globale
+struct sockaddr_in6 add_host, add_client; //Adresse du sender et du receiver
+int host_length = sizeof(add_client); //Taille d'une adresse
 
 
 /**************************************
@@ -56,7 +56,6 @@ int socket_create() {
   if( bind(sockfd, (struct sockaddr*)&add_host, sizeof(add_host) ) == -1) {
       error("Unable to bind");
   }
-
 }
 
 
@@ -64,27 +63,36 @@ int socket_create() {
 *             Fonction main           *
 **************************************/
 int main(void) {
-
+  //Initialisation des variables
   int count = 0;
   char *buffer = malloc(sizeof(char)*BUFLEN);
-
-  socket_create();
   pkt_t *pkt2 = pkt_new();
   char *data = malloc(sizeof(char)*27);
   size_t taille = 0;
   uint16_t pkt_taille = 0;
+
+  //Creation du socket
+  socket_create();
+
+  //Reception des packets
   while(1) {
+    //Initialisation du buffer
     bzero(buffer, BUFLEN);
     printf("Server listenning for data :\n");
     fflush(stdout);
 
+    //Reception du buffer
     if ((client_length = recvfrom(sockfd, buffer, BUFLEN, 0, (struct sockaddr *) &add_client, &host_length)) == -1) {
       error("Problem with data receive");
     }
+
+    //Decodage vers la structure pkt
     memcpy(&pkt_taille, buffer+1, 1);
     pkt_taille = ntohs(pkt_taille);
     taille = (size_t) pkt_taille + 12;
     pkt_decode(buffer, taille, pkt2);
+
+    //Encodage le l'acquittement
     printf("Data: %s\n" , pkt_get_payload(pkt2));
     printf("%d\n", pkt_get_seqnum(pkt2));
     pkt_set_payload(pkt2, "Données recues biatch", 22);
@@ -93,11 +101,13 @@ int main(void) {
     taille = 34;
     pkt_encode(pkt2, data_send, &taille);
 
+    //Envoie de l'acquittement
     if (sendto(sockfd, data_send, 37, 0, (struct sockaddr*) &add_client, host_length) == -1) {
       error("sendto()");
     }
   }
 
+  //Fermeture et fin
   close(sockfd);
   return 0;
 }
