@@ -218,7 +218,7 @@ int main(int argc, char *argv[]) {
   reader(file);
 
   i = 0;
-  while (end == 0) {
+  while (end == 0 && i < window) {
     pkt = pkt_buffer[i];
     taille_encode = 12 + pkt_get_length(pkt);
     char *buf2 = malloc(sizeof(char)*taille_encode);

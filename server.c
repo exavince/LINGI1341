@@ -19,6 +19,8 @@
 int sockfd, client_length, erreur;  //Gestion  des sockets + erreur globale
 struct sockaddr_in6 add_host, add_client; //Adresse du sender et du receiver
 int host_length = sizeof(add_client); //Taille d'une adresse
+pkt_t **pkt_buffer;
+uint8_t window = 31;
 
 
 /**************************************
@@ -58,6 +60,11 @@ int socket_create() {
   }
 }
 
+/**************************************
+*         Decodage de packet          *
+**************************************/
+
+
 
 /**************************************
 *             Fonction main           *
@@ -70,12 +77,14 @@ int main(void) {
   char *data = malloc(sizeof(char)*27);
   size_t taille = 0;
   uint16_t pkt_taille = 0;
+	pkt_buffer = malloc(sizeof(pkt_t));
+	uint8_t i = 0;
 
   //Creation du socket
   socket_create();
 
   //Reception des packets
-  while(1) {
+  while(i < window) {
     //Initialisation du buffer
     bzero(buffer, BUFLEN);
     printf("Server listenning for data :\n");
@@ -91,6 +100,7 @@ int main(void) {
     pkt_taille = ntohs(pkt_taille);
     taille = (size_t) pkt_taille + 12;
     pkt_decode(buffer, taille, pkt2);
+		pkt_buffer[i] = pkt2;
 
     //Encodage le l'acquittement
     printf("Data: %s\n" , pkt_get_payload(pkt2));
@@ -105,6 +115,7 @@ int main(void) {
     if (sendto(sockfd, data_send, 37, 0, (struct sockaddr*) &add_client, host_length) == -1) {
       error("sendto()");
     }
+		i++;
   }
 
   //Fermeture et fin
