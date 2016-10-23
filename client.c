@@ -31,7 +31,7 @@ char *host_name;  //Nom (adresse) de l'hote
 uint16_t udp_port = 0;  //Port d'envoi
 int test_stdin = 0;   //Test pour redirection sur le stdin
 int test_file = 0;    //Test pour le nom de fichier
-FILE *file;   //Fichier a gerer
+FILE *file;   //Fichier a lire
 uint8_t end = 0;  //Fin de la boucle d'envoi
 
 
@@ -47,6 +47,11 @@ void error(char *s) {
 /**************************************
 *          Taille des buffers         *
 **************************************/
+/*
+* Fonction qui retourne la taille d'une chaine de données
+* char[] s : Buffer de taille inconnue terminant pas '\0'
+* i : Taille du buffer ('\0' inclu)
+*/
 uint16_t count(char s[]) {
   uint16_t i = 0;
   while(s[i]!='\0') {
