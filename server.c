@@ -20,10 +20,11 @@ int sockfd, client_length, erreur;  //Gestion  des sockets + erreur globale
 struct sockaddr_in6 add_host, add_client; //Adresse du sender et du receiver
 int host_length = sizeof(add_client); //Taille d'une adresse
 pkt_t **pkt_buffer;
-uint8_t window = 31;
+uint8_t window = 5;
 uint8_t window_position = 0;
 uint8_t seq_start = 0;
-uint8_t seq_end = 30;
+uint8_t seq_end = 0;
+uint8_t connection = 0;
 
 
 /**************************************
@@ -146,6 +147,7 @@ void acquittement(char *data, pkt_t *pkt) {
 int main(void) {
   //Initialisation des variables
   int count = 0;
+  seq_end = window - 1;
   char *buffer = malloc(sizeof(char)*BUFLEN);
   pkt_t *pkt = pkt_new();
   char *data = malloc(sizeof(char)*34);
@@ -173,6 +175,13 @@ int main(void) {
     if ((client_length = recvfrom(sockfd, buffer, BUFLEN, 0, (struct sockaddr *) &add_client, &host_length)) == -1) {
       error("Problem with data receive");
     }
+    if (connection == 0) {
+      erreur = connect(sockfd, (struct sockaddr *) &add_client, sizeof(add_client));
+      if(erreur < 0) {
+        error("Unable to connect\n");
+      }
+      connection = 1;
+    }
     printf("Data : %s\n", buffer+8);
 
     //Decodage du buffer vers la structure
@@ -182,9 +191,11 @@ int main(void) {
     acquittement(data, pkt);
 
     //Envoie de l'acquittement
-    if (sendto(sockfd, data, 37, 0, (struct sockaddr*) &add_client, host_length) == -1) {
-      error("sendto()");
+    erreur = write(sockfd, data, 37);
+    if (erreur < 0) {
+      error("ERROR writing to socket");
     }
+
 		i++;
   }
 

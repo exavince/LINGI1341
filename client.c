@@ -17,7 +17,7 @@
 /**************************************
 *          variables globales         *
 **************************************/
-uint8_t window = 31;  //Taille de la fenetre
+uint8_t window = 5;  //Taille de la fenetre
 uint8_t window_position = 0;  //Dernière position libre dans le buffer
 uint8_t ack_position = 0;
 uint8_t seqnum = 0;   //Numero de séquence du dernier packet envoyer
@@ -118,7 +118,7 @@ void reader(FILE *file) {
   bzero(tmp, 512);
 
   //Lecture du fichier
-  while (window_position < 31) {
+  while (window_position < window) {
     if (fgets(tmp, 512, file) == NULL) {
       file_end = 1;
       fclose(file);
