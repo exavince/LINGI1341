@@ -27,7 +27,10 @@ pkt_t* pkt_new() {
 }
 
 void pkt_del (pkt_t *pkt) {
-  free(pkt);
+  if (pkt != NULL) {
+    free(pkt);
+    pkt = NULL;
+  }
 }
 
 pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {

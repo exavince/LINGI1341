@@ -25,6 +25,7 @@ uint8_t window_position = 0;
 uint8_t seq_start = 0;
 uint8_t seq_end = 0;
 uint8_t connection = 0;
+uint8_t end = 0;
 
 
 /**************************************
@@ -165,7 +166,7 @@ int main(void) {
   socket_create();
 
   //Reception des packets
-  while(i < window) {
+  while(end == 0) {
     //Initialisation du buffer
     bzero(buffer, BUFLEN);
     printf("Server listenning for data :\n");
@@ -186,6 +187,9 @@ int main(void) {
 
     //Decodage du buffer vers la structure
     pkt = decodage(buffer);
+    if (pkt_get_type(pkt) == 0) {
+      end = 1;
+    }
 
     //Encodage le l'acquittement
     acquittement(data, pkt);
@@ -196,7 +200,10 @@ int main(void) {
       error("ERROR writing to socket");
     }
 
-		i++;
+    if (window_position == window) {
+      //writter();
+      window_position = 0;
+    }
   }
 
   //Fermeture et fin
