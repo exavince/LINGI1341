@@ -30,6 +30,13 @@ void pkt_del (pkt_t *pkt) {
   free(pkt);
 }
 
+uint32_t calc_crc(void * data, size_t len)
+{
+	 uint32_t crc = crc32(0L,Z_NULL , 0);
+	 return crc32(crc, data, len);
+}
+
+
 pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
     if(len < 8) {
         return E_NOHEADER;
@@ -56,6 +63,9 @@ pkt_status_code pkt_decode (const char *data, const size_t len, pkt_t *pkt) {
     return 0;
 }
 
+
+
+
 pkt_status_code pkt_encode (const pkt_t* pkt, char *buf, size_t *len)
 {
     uint16_t length = htons(pkt->length);
@@ -66,8 +76,8 @@ pkt_status_code pkt_encode (const pkt_t* pkt, char *buf, size_t *len)
 
     memcpy((void *) &buf[8], (void *) pkt->payload, pkt->length);
 
-    uint32_t crc = crc32(0L, Z_NULL, 0);
-    crc = htonl(crc32(0, (void*) buf, 8+(pkt->length)));
+   
+    uint32_t crc = htonl(calc_crc((void*)buf, 8+(pkt->length));
     memcpy((void *) &buf[8+pkt->length], (void *) &crc, 4);
 
     *len = 8+(pkt->length)+4;
@@ -75,6 +85,8 @@ pkt_status_code pkt_encode (const pkt_t* pkt, char *buf, size_t *len)
     return PKT_OK;
 }
 
+
+/*====================================geters & seters=========================================*/
 ptypes_t pkt_get_type (const pkt_t *pkt) {
     return pkt->type;
 }
