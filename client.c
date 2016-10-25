@@ -167,6 +167,17 @@ int main(int argc, char *argv[]) {
   size_t taille_encode;
   retour = malloc(sizeof(char)*37);
   pkt_buffer = malloc(sizeof(pkt_t)*window);
+  struct timeval * tv = (struct timeval * )malloc(sizeof(struct timeval));
+	tv->tv_sec = 5;
+	tv->tv_usec = 0;
+  //fd_set * readfds, * writefds;
+	//readfds = (fd_set *) malloc(sizeof(fd_set));
+	//writefds =  (fd_set *) malloc(sizeof(fd_set));
+  //FD_ZERO(readfds);
+	//FD_SET(sfd, readfds);
+	//FD_SET(STDIN_FILENO, readfds);
+	//FD_ZERO(writefds);
+	//FD_SET(sfd, writefds);
   i=0;
   while (i < window) {
     pkt_buffer[i] = NULL;
