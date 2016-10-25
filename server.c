@@ -25,6 +25,8 @@ uint8_t window_position = 0;
 uint8_t seq_start = 0;
 uint8_t seq_end = 0;
 uint8_t connection = 0;
+uint8_t end = 0;
+FILE *file = NULL;
 
 
 /**************************************
@@ -133,11 +135,17 @@ pkt_t* decodage(char *buf) {
 * data : buffer qui contiendra le paquet
 * pkt : paquet a encoder
 */
-void acquittement(char *data, pkt_t *pkt) {
-  pkt_set_payload(pkt, "Données recues biatch", 22);
-  pkt_set_type(pkt, PTYPE_ACK);
+pkt_t* acquittement(char *data, pkt_t *pkt) {
+  pkt_t *ack = pkt_new();
+  pkt_set_payload(ack, "Données recues biatch", 22);
+  pkt_set_type(ack, PTYPE_ACK);
+  pkt_set_timestamp(ack, pkt_get_timestamp(pkt));
+  pkt_set_crc(ack, pkt_get_crc(pkt));
+  pkt_set_window(ack, pkt_get_window(pkt));
+  pkt_set_seqnum(ack, pkt_get_seqnum(pkt));
   size_t taille = 34;
-  pkt_encode(pkt, data, &taille);
+  pkt_encode(ack, data, &taille);
+  return ack;
 }
 
 
@@ -146,15 +154,18 @@ void acquittement(char *data, pkt_t *pkt) {
 **************************************/
 int main(void) {
   //Initialisation des variables
+  file = fopen("serv.txt" , "w+");
   int count = 0;
   seq_end = window - 1;
   char *buffer = malloc(sizeof(char)*BUFLEN);
   pkt_t *pkt = pkt_new();
+  pkt_t *ack = pkt_new();
   char *data = malloc(sizeof(char)*34);
   size_t taille = 0;
   uint16_t pkt_taille = 0;
 	pkt_buffer = malloc(sizeof(pkt_t)*window);
   uint8_t i = 0;
+  pkt_t *pkt2 = pkt_new();
   while (i < window) {
     pkt_buffer[i] = NULL;
     i++;
@@ -165,7 +176,7 @@ int main(void) {
   socket_create();
 
   //Reception des packets
-  while(i < window) {
+  while(end == 0) {
     //Initialisation du buffer
     bzero(buffer, BUFLEN);
     printf("Server listenning for data :\n");
@@ -186,9 +197,13 @@ int main(void) {
 
     //Decodage du buffer vers la structure
     pkt = decodage(buffer);
+    if (pkt_get_type(pkt) == 0) {
+      end = 1;
+    }
+    printf("Seqnum : %d\n", seq_start);
 
     //Encodage le l'acquittement
-    acquittement(data, pkt);
+    ack = acquittement(data, pkt);
 
     //Envoie de l'acquittement
     erreur = write(sockfd, data, 37);
@@ -196,10 +211,28 @@ int main(void) {
       error("ERROR writing to socket");
     }
 
-		i++;
+    if (window_position == window) {
+      int i = 0;
+      window_position = 0;
+      for (i=0; i < window; i++) {
+        fwrite(pkt_get_payload(pkt_buffer[i]) , pkt_get_length(pkt_buffer[i]) , 1 , file);
+        pkt_buffer[i] = NULL;
+      }
+      seq_end = seq_end + window;
+      seq_start = seq_start + window;
+    }
+  }
+
+  if (window_position-1 > 0) {
+    int i = 0;
+    for (i=0; i < window_position-1; i++) {
+      fwrite(pkt_get_payload(pkt_buffer[i]) , pkt_get_length(pkt_buffer[i]) , 1 , file);
+      pkt_buffer[i] = NULL;
+    }
   }
 
   //Fermeture et fin
+  fclose(file);
   close(sockfd);
   return 0;
 }

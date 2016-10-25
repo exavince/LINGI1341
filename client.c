@@ -118,7 +118,7 @@ void reader(FILE *file) {
   bzero(tmp, 512);
 
   //Lecture du fichier
-  while (window_position < window) {
+  while (window_position < window && file_end == 0) {
     if (fgets(tmp, 512, file) == NULL) {
       file_end = 1;
       fclose(file);
@@ -134,23 +134,6 @@ void reader(FILE *file) {
       ack_position++;
       seqnum++;
     }
-  }
-}
-
-
-/**************************************
-*            Gestion buffer           *
-**************************************/
-void buffer_move() {
-  int i = 0;
-  pkt_del(pkt_buffer[0]);
-  while (pkt_buffer[i] != NULL && i < window) {
-    pkt_buffer[i] = pkt_buffer[i+1];
-    i++;
-  }
-  window_position--;
-  if(file_end == 0) {
-    reader(file);
   }
 }
 
@@ -184,6 +167,17 @@ int main(int argc, char *argv[]) {
   size_t taille_encode;
   retour = malloc(sizeof(char)*37);
   pkt_buffer = malloc(sizeof(pkt_t)*window);
+  struct timeval * tv = (struct timeval * )malloc(sizeof(struct timeval));
+	tv->tv_sec = 5;
+	tv->tv_usec = 0;
+  //fd_set * readfds, * writefds;
+	//readfds = (fd_set *) malloc(sizeof(fd_set));
+	//writefds =  (fd_set *) malloc(sizeof(fd_set));
+  //FD_ZERO(readfds);
+	//FD_SET(sfd, readfds);
+	//FD_SET(STDIN_FILENO, readfds);
+	//FD_ZERO(writefds);
+	//FD_SET(sfd, writefds);
   i=0;
   while (i < window) {
     pkt_buffer[i] = NULL;
@@ -223,14 +217,21 @@ int main(int argc, char *argv[]) {
   reader(file);
 
   i = 0;
-  while (end == 0 && i < window) {
-    pkt = pkt_buffer[i];
+  while (end == 0) {
+    if (file_end == 1 && window_position == 0) {
+      pkt_create(pkt, 0, 2, "");
+      end = 1;
+    }
+    else {
+      pkt = pkt_buffer[i];
+    }
     taille_encode = 12 + pkt_get_length(pkt);
     char *buf2 = malloc(sizeof(char)*taille_encode);
     pkt_encode(pkt, buf2, &taille_encode);
 
     //Envoi des données sur le socket
     erreur = write(sockfd,buf2, taille_encode);
+    window_position--;
     if (erreur < 0) {
       error("ERROR writing to socket");
     }
@@ -245,6 +246,18 @@ int main(int argc, char *argv[]) {
     puts(pkt_get_payload(receive));
     ack_receive(receive);
     i++;
+    if (i == window && file_end == 0) {
+      i = 0;
+      while (i < window) {
+        pkt_buffer[i] = NULL;
+        i++;
+      }
+      reader(file);
+      i = 0 ;
+    }
+    if (i == window && file_end == 1) {
+      end = 1;
+    }
   }
 
   //fermeture du socket et fin
