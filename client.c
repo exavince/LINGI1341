@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
   host_name = malloc(sizeof(char)*100);
 
   //Recuperation des arguments
-  for (i=1; i<argc; i++) {
+  /*for (i=1; i<argc; i++) {
     if(strcmp(argv[i], "-f") == 0) {
       strcpy(filename, argv[i+1]);
       i++;
@@ -211,8 +211,25 @@ int main(int argc, char *argv[]) {
   //Ouverture du fichier
   if ((file = fopen("test.txt", "r")) == NULL) {
     error("Impossible d'ouvrir le fichier");
-  }
-
+  }*/
+	
+	if(argc > 1)
+	{
+		int i;
+		while(i < argc-1 & strcmp(argv[i], "-f") != 0)
+			i++;
+		char * filename = argv[i+1];
+		
+		//Ouverture du fichier
+		
+		if ((file = fopen(filename, "r")) == NULL) {
+			error("Impossible d'ouvrir le fichier");
+		}
+  
+	}else
+	{
+		file = stdin;
+	}
   //Lecture du fichier
   reader(file);
 
