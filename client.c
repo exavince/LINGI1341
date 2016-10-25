@@ -170,14 +170,14 @@ int main(int argc, char *argv[]) {
   struct timeval * tv = (struct timeval * )malloc(sizeof(struct timeval));
 	tv->tv_sec = 5;
 	tv->tv_usec = 0;
-  //fd_set * readfds, * writefds;
-	//readfds = (fd_set *) malloc(sizeof(fd_set));
-	//writefds =  (fd_set *) malloc(sizeof(fd_set));
-  //FD_ZERO(readfds);
-	//FD_SET(sfd, readfds);
-	//FD_SET(STDIN_FILENO, readfds);
-	//FD_ZERO(writefds);
-	//FD_SET(sfd, writefds);
+  fd_set * readfds, * writefds;
+	readfds = (fd_set *) malloc(sizeof(fd_set));
+	writefds =  (fd_set *) malloc(sizeof(fd_set));
+  FD_ZERO(readfds);
+	FD_SET(sockfd, readfds);
+	FD_SET(STDIN_FILENO, readfds);
+	FD_ZERO(writefds);
+	FD_SET(sockfd, writefds);
   i=0;
   while (i < window) {
     pkt_buffer[i] = NULL;
@@ -218,6 +218,7 @@ int main(int argc, char *argv[]) {
 
   i = 0;
   while (end == 0) {
+    //int err_timeout = select(sfd + 1, readfds, writefds, NULL, tv);
     if (file_end == 1 && window_position == 0) {
       pkt_create(pkt, 0, 2, "");
       end = 1;
