@@ -1,19 +1,30 @@
-main: client.o server.o packet_interface.o
-	@echo "server et client\n"
-	@gcc -o server server.o packet_interface.o -lz -L/
-	@gcc -o client clien.o packet_interface.o -lz -L/
-	
-client.o: client.c packet_interface.h
-	@echo "client.o\n"
-	@gcc -c client.o client.c packet_interface.h
-	
-server.o: server.c packet_interface.h
-	@echo "server.o\n"
-	@gcc -c server.o server.c packet_interface.h
-	
-packet_interface.o: packet_interface.c packet_interface.h
-	@echo "pakcet_interface.o\n"
-	@gcc -c packet_interface.o packet_interface.c -lz
+all: sender receiver
+
+sender: src/sender.o
+	gcc -o src/sender src/sender.o -lz
+
+sender.o: src/sender.c src/packet_implement.h
+	gcc -c src/sender.c -lz
+
+receiver: src/receiver.o
+	gcc -o src/receiver src/receiver.o -lz
+
+receiver.o: src/receiver.c src/packet_implement.h
+	gcc -c src/receiver.c -lz
+
+
+##############################################################################
+
+.PHONY: clean
 
 clean:
-	rm *.o server client
+	rm -rf src/*o
+	rm -rf src/sender
+	rm -rf src/receiver
+
+
+###############################################################################
+
+.PHONY: tests
+
+test:

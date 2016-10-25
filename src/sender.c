@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include "packet_interface.c"
 #include <netinet/in.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "packet_interface.c"
 
 #define SERVER "::1" //address of the server
 #define BUFLEN 512  //Max length of buffer
@@ -205,31 +205,32 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  //Création du socket et connection
-  socket_create();
-
   //Ouverture du fichier
   if ((file = fopen("test.txt", "r")) == NULL) {
     error("Impossible d'ouvrir le fichier");
   }*/
-	
+
 	if(argc > 1)
 	{
 		int i;
 		while(i < argc-1 & strcmp(argv[i], "-f") != 0)
 			i++;
 		char * filename = argv[i+1];
-		
+
 		//Ouverture du fichier
-		
+
 		if ((file = fopen(filename, "r")) == NULL) {
 			error("Impossible d'ouvrir le fichier");
 		}
-  
+
 	}else
 	{
 		file = stdin;
 	}
+
+  //Création du socket et connection
+  socket_create();
+
   //Lecture du fichier
   reader(file);
 

@@ -1,3 +1,4 @@
+
 #include <stddef.h> /* size_t */
 #include <stdint.h> /* uintx_t */
 
@@ -73,12 +74,12 @@ pkt_status_code pkt_encode(const pkt_t *pkt, char *buf, size_t *len);
  * Les valeurs renvoyÃ©es sont toutes dans l'endianness native
  * de la machine!
  */
-ptypes_t pkt_get_type     (const pkt_t *pkt);
-uint8_t  pkt_get_window   (const pkt_t *pkt);
-uint8_t  pkt_get_seqnum   (const pkt_t *pkt);
-uint16_t pkt_get_length   (const pkt_t *pkt);
+ptypes_t pkt_get_type(const pkt_t *pkt);
+uint8_t  pkt_get_window(const pkt_t *pkt);
+uint8_t  pkt_get_seqnum(const pkt_t *pkt);
+uint16_t pkt_get_length(const pkt_t *pkt);
 uint32_t pkt_get_timestamp(const pkt_t *pkt);
-uint32_t pkt_get_crc      (const pkt_t *pkt);
+uint32_t pkt_get_crc(const pkt_t *pkt);
 /* Renvoie un pointeur vers le payload du paquet, ou NULL s'il n'y
  * en a pas.
  */

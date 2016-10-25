@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include "packet_interface.c"
 #include <netinet/in.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "packet_interface.c"
 
 #define BUFLEN 512  //Max length of buffer
 #define PORT 8888
