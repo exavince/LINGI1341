@@ -28,3 +28,4 @@ clean:
 .PHONY: tests
 
 test:
+	./tests/test.sh
