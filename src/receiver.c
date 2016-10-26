@@ -197,10 +197,10 @@ int main(void) {
 
     //Decodage du buffer vers la structure
     pkt = decodage(buffer);
-    if (pkt_get_type(pkt) == 0) {
+    if (pkt_get_length(pkt) == 0) {
       end = 1;
     }
-    printf("Seqnum : %d\n", seq_start);
+    printf("Numero de window : %d\n", pkt_get_window(pkt));
 
     //Encodage le l'acquittement
     ack = acquittement(data, pkt);

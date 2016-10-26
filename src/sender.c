@@ -17,11 +17,12 @@
 /**************************************
 *          variables globales         *
 **************************************/
-uint8_t window = 5;  //Taille de la fenetre
-uint8_t window_position = 0;  //Dernière position libre dans le buffer
-uint8_t ack_position = 0;
+uint8_t window_max = 5;  //Taille de la fenetre
+uint8_t window = 5;  //Dernière position libre dans le buffer
+uint8_t ack_position = 5;
 uint8_t seqnum = 0;   //Numero de séquence du dernier packet envoyer
 uint8_t file_end = 0;
+uint8_t slot_free = 1;
 int sockfd;   //Socket de communication
 char *retour; //Supprimer apres retour d'un ack
 pkt_t **pkt_buffer;   //Buffer packet a envoyer
@@ -32,7 +33,7 @@ uint16_t udp_port = 0;  //Port d'envoi
 int test_stdin = 0;   //Test pour redirection sur le stdin
 int test_file = 0;    //Test pour le nom de fichier
 FILE *file;   //Fichier a lire
-uint8_t end = 0;  //Fin de la boucle d'envoi
+uint8_t end = 1;  //Fin de la boucle d'envoi
 
 
 /**************************************
@@ -84,6 +85,7 @@ int socket_create() {
   int erreur;
 
   //Creation du socket
+  printf("Connection au socket\n");
   sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
   if (sockfd == -1) {
     error("Unable to create the socket");
@@ -118,21 +120,36 @@ void reader(FILE *file) {
   bzero(tmp, 512);
 
   //Lecture du fichier
-  while (window_position < window && file_end == 0) {
-    if (fgets(tmp, 512, file) == NULL) {
+  if (fgets(tmp, 512, file) == NULL) {
       file_end = 1;
       fclose(file);
-    }
-    else {
-      taille = count(tmp);
-      printf("Count : %d \n", taille);
-      pkt = pkt_new();
-      pkt_create(pkt, 1, taille, tmp);
-      pkt_buffer[window_position] = pkt;
-      bzero(tmp, 512);
-      window_position++;
-      ack_position++;
-      seqnum++;
+  }
+  else {
+    taille = count(tmp);
+    pkt = pkt_new();
+    pkt_create(pkt, PTYPE_DATA, taille, tmp);
+    pkt_buffer[window_max - window] = pkt;
+    bzero(tmp, 512);
+    window--;
+    seqnum++;
+  }
+}
+
+
+/**************************************
+*          Buffer mouvement           *
+**************************************/
+void buffer_move(uint8_t nombre, pkt_t **buffer) {
+  uint8_t i;
+  uint8_t j;
+  for (j=0; j <= nombre; j++) {
+    for (i=0; i<window_max; i++) {
+      if (i == (window_max - 1)) {
+        buffer[i] = NULL;
+      }
+      else {
+        buffer[i] = buffer[i+1];
+      }
     }
   }
 }
@@ -141,16 +158,60 @@ void reader(FILE *file) {
 /**************************************
 *           Search for ack            *
 **************************************/
-void ack_receive(pkt_t *ack) {
+uint8_t ack_receive(pkt_t *ack) {
   uint32_t ack_seqnum = pkt_get_seqnum(ack);
   uint8_t boucle = 0;
-  uint8_t end_boucle = 0;
-  while (boucle < window && end_boucle == 0) {
-    if (pkt_get_seqnum(pkt_buffer[boucle]) == ack_seqnum) {
-      end_boucle = 1;
-      pkt_buffer[boucle] == NULL;
+  while (boucle < window_max) {
+    if (pkt_get_seqnum(ack_buffer[boucle]) == ack_seqnum) {
+      buffer_move(boucle, ack_buffer);
+      ack_position = ack_position + boucle+1;
+      return 1;
     }
     boucle++;
+  }
+  return 0;
+}
+
+
+/**************************************
+*               Writter               *
+**************************************/
+void writter(pkt_t **pkt_buffer, int position) {
+  if (file_end == 1 && ack_position == window_max && window == window_max) {
+    //Encodage de la deconnection
+    printf("deconnection\n");
+    end = 1;
+    pkt_t *pkt = pkt_new();
+    char *buffer = malloc(sizeof(char)*12);
+    size_t size = 12;
+    pkt_set_window(pkt, window);
+    pkt_set_length(pkt, 0);
+    pkt_set_type(pkt, PTYPE_DATA);
+    pkt_set_timestamp(pkt, time(NULL));
+    pkt_set_seqnum(pkt, seqnum-1);
+    pkt_encode(pkt, buffer, &size);
+
+    //Envoie de la deconnection
+    int erreur = write(sockfd, buffer, 12);
+    if (erreur < 0) {
+      error("ERROR writing to socket");
+    }
+  }
+  else {
+    //Encodage de la structure
+    pkt_t *pkt = pkt_buffer[position];
+    printf("Envoi de : %s\n", pkt_get_payload(pkt));
+    ack_buffer[window_max - ack_position] = pkt;
+    ack_position--;
+    size_t size = 12 + (size_t) pkt_get_length(pkt);
+    char *buffer = malloc(sizeof(char)*size);
+    pkt_encode(pkt, buffer, &size);
+
+    //Envoi des données sur le socket
+    int erreur = write(sockfd, buffer, size);
+    if (erreur < 0) {
+      error("ERROR writing to socket");
+    }
   }
 }
 
@@ -167,17 +228,11 @@ int main(int argc, char *argv[]) {
   size_t taille_encode;
   retour = malloc(sizeof(char)*37);
   pkt_buffer = malloc(sizeof(pkt_t)*window);
+  ack_buffer = malloc(sizeof(pkt_t)*window);
   struct timeval * tv = (struct timeval * )malloc(sizeof(struct timeval));
-	tv->tv_sec = 5;
-	tv->tv_usec = 0;
   fd_set * readfds, * writefds;
 	readfds = (fd_set *) malloc(sizeof(fd_set));
 	writefds =  (fd_set *) malloc(sizeof(fd_set));
-  FD_ZERO(readfds);
-	FD_SET(sockfd, readfds);
-	FD_SET(STDIN_FILENO, readfds);
-	FD_ZERO(writefds);
-	FD_SET(sockfd, writefds);
   i=0;
   while (i < window) {
     pkt_buffer[i] = NULL;
@@ -186,30 +241,7 @@ int main(int argc, char *argv[]) {
   filename = malloc(sizeof(char)*100);
   host_name = malloc(sizeof(char)*100);
 
-  //Recuperation des arguments
-  /*for (i=1; i<argc; i++) {
-    if(strcmp(argv[i], "-f") == 0) {
-      strcpy(filename, argv[i+1]);
-      i++;
-      test_file = 1;
-    }
-    else if (strcmp(argv[i], "<") == 0) {
-      strcpy(filename, argv[i+1]);
-      i++;
-      test_stdin = 1;
-    }
-    else {
-      strcpy(host_name, argv[i]);
-      i++;
-      udp_port = atoi(argv[i]);
-    }
-  }
-
-  //Ouverture du fichier
-  if ((file = fopen("test.txt", "r")) == NULL) {
-    error("Impossible d'ouvrir le fichier");
-  }*/
-
+  //Recuperation des argument
 	if(argc > 1)
 	{
 		int i;
@@ -218,7 +250,6 @@ int main(int argc, char *argv[]) {
 		char * filename = argv[i+1];
 
 		//Ouverture du fichier
-
 		if ((file = fopen(filename, "r")) == NULL) {
 			error("Impossible d'ouvrir le fichier");
 		}
@@ -232,54 +263,93 @@ int main(int argc, char *argv[]) {
   socket_create();
 
   //Lecture du fichier
-  reader(file);
+  while (window > 0) {
+    reader(file);
+  }
 
-  i = 0;
-  while (end == 0) {
-    //int err_timeout = select(sfd + 1, readfds, writefds, NULL, tv);
-    if (file_end == 1 && window_position == 0) {
-      pkt_create(pkt, 0, 2, "");
-      end = 1;
+  //Demande de connection
+  writter(pkt_buffer, 0);
+  window++;
+  buffer_move(0, pkt_buffer);
+  while (end == 1) {
+    FD_ZERO(readfds);
+    FD_SET(sockfd, readfds);
+    FD_ZERO(writefds);
+    FD_SET(sockfd, writefds);
+    tv->tv_sec = 2;
+  	tv->tv_usec = 0;
+    erreur = select(sockfd+1, readfds, NULL, NULL, tv);
+    if (erreur < 0) {
+      error("Probleme avec le select");
+    }
+    else if (erreur == 0) {;
+      writter(ack_buffer, 0);
     }
     else {
-      pkt = pkt_buffer[i];
-    }
-    taille_encode = 12 + pkt_get_length(pkt);
-    char *buf2 = malloc(sizeof(char)*taille_encode);
-    pkt_encode(pkt, buf2, &taille_encode);
-
-    //Envoi des données sur le socket
-    erreur = write(sockfd,buf2, taille_encode);
-    window_position--;
-    if (erreur < 0) {
-      error("ERROR writing to socket");
-    }
-
-    //Reception de l'acknowlogement
-    if (recvfrom(sockfd, retour, 37, 0, (struct sockaddr *) &address, &address_length) == -1) {
-      error("recvfrom()");
-    }
-    pkt_t *receive;
-    receive = pkt_new();
-    pkt_decode (retour, 37, receive);
-    puts(pkt_get_payload(receive));
-    ack_receive(receive);
-    i++;
-    if (i == window && file_end == 0) {
-      i = 0;
-      while (i < window) {
-        pkt_buffer[i] = NULL;
-        i++;
+      if(FD_ISSET(sockfd, readfds)) {
+        erreur = recvfrom(sockfd, retour, 37, 0, (struct sockaddr *) &address, &address_length);
+        if (erreur == -1) {
+          error("Probleme avec recvfrom()");
+        }
+        pkt = pkt_new();
+        pkt_decode(retour, 37, pkt);
+        slot_free = pkt_get_window(pkt);
+        ack_receive(pkt);
+        end = 0;
       }
-      reader(file);
-      i = 0 ;
     }
-    if (i == window && file_end == 1) {
-      end = 1;
+  }
+
+
+  //boucle de lecture-ecriture
+  i = 0;
+  while (end == 0) {
+    if ((window_max - window) < window_max  && file_end == 0) {
+      reader(file);
+    }
+    FD_ZERO(readfds);
+    FD_SET(sockfd, readfds);
+    FD_SET(STDIN_FILENO, readfds);
+    FD_ZERO(writefds);
+    FD_SET(sockfd, writefds);
+    tv->tv_sec = 2;
+  	tv->tv_usec = 0;
+    erreur = select(sockfd+1, readfds, NULL, NULL, tv);
+    if (erreur < 0) {
+      error("Probleme avec le select()");
+    }
+    else if (erreur == 0) {
+      for (i=0; i<window_max; i++) {
+        if (ack_buffer[i] != NULL) {
+          if (pkt_get_timestamp(ack_buffer[i])+5 < time(NULL)){
+            writter(ack_buffer, i);
+            pkt_set_timestamp(ack_buffer[i], time(NULL));
+          }
+        }
+      }
+    }
+    else {
+      if (FD_ISSET(sockfd, readfds)) {
+        erreur = recvfrom(sockfd, retour, 37, 0, (struct sockaddr *) &address, &address_length);
+        if (erreur == -1) {
+          error("Probleme avec recvfrom()");
+        }
+        pkt = pkt_new();
+        pkt_decode(retour, 37, pkt);
+        slot_free = pkt_get_window(pkt);
+        ack_receive(pkt);
+      }
+    }
+    if (slot_free > 0 && ack_position > 0) {
+      writter(pkt_buffer, 0);
+      window++;
+      buffer_move(0, pkt_buffer);
     }
   }
 
   //fermeture du socket et fin
+  free(readfds);
+  free(writefds);
   close(sockfd);
   return 0;
 }
